@@ -1,22 +1,31 @@
-from flask import Flask, request, send_file
-import time
+from flask import Flask, request
+from openai import OpenAI
 import os
+import time
 
 app = Flask(__name__)
+
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
 
 @app.route("/")
 def home():
     return "ESP32 Voice Server is running!"
 
+
 @app.route("/upload", methods=["POST"])
 def upload():
+
     filename = f"received_{int(time.time())}.wav"
 
+    # Save incoming WAV
     with open(filename, "wb") as f:
         while True:
             chunk = request.stream.read(4096)
+
             if not chunk:
                 break
+
             f.write(chunk)
 
     size = os.path.getsize(filename)
@@ -24,14 +33,22 @@ def upload():
     print(f"Received: {filename}")
     print(f"Size: {size} bytes")
 
-    return "WAV received successfully", 200
+    # Send WAV to OpenAI
+    print("Sending audio to OpenAI...")
 
-@app.route("/download")
-def download():
-    files = [f for f in os.listdir(".") if f.endswith(".wav")]
+    with open(filename, "rb") as audio_file:
 
-    if not files:
-        return "No WAV file found", 404
+        transcription = client.audio.transcriptions.create(
+            model="gpt-4o-mini-transcribe",
+            file=audio_file
+        )
 
-    latest = max(files, key=os.path.getmtime)
-    return send_file(latest, mimetype="audio/wav")
+    print("================================")
+    print("TRANSCRIPTION:")
+    print(transcription.text)
+    print("================================")
+
+    # Delete temporary WAV
+    os.remove(filename)
+
+    return "Transcription complete", 200

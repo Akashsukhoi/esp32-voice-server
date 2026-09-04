@@ -1,4 +1,4 @@
-```python
+
 from flask import Flask, request, send_file
 from groq import Groq
 import os
@@ -76,4 +76,4 @@ def download():
         as_attachment=False,
         download_name=latest
     )
-```
+

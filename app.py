@@ -1,7 +1,9 @@
-from flask import Flask, request
+```python
+from flask import Flask, request, send_file
 from groq import Groq
 import os
 import time
+import glob
 
 app = Flask(__name__)
 
@@ -29,8 +31,9 @@ def upload():
             f.write(chunk)
 
     print(f"Received: {filename}")
+    print(f"Size: {os.path.getsize(filename)} bytes")
 
-    # Send WAV to Groq Whisper
+    # Send WAV to Groq
     print("Sending audio to Groq...")
 
     with open(filename, "rb") as audio_file:
@@ -48,7 +51,29 @@ def upload():
     print(transcription.text)
     print("================================")
 
-    # Delete temporary file
-    os.remove(filename)
+    # Keep the WAV file for testing
+    # os.remove(filename)
 
     return "Transcription complete", 200
+
+
+@app.route("/download")
+def download():
+
+    files = glob.glob("received_*.wav")
+
+    if not files:
+        return "No WAV files found", 404
+
+    # Find newest WAV
+    latest = max(files, key=os.path.getmtime)
+
+    print(f"Downloading: {latest}")
+
+    return send_file(
+        latest,
+        mimetype="audio/wav",
+        as_attachment=False,
+        download_name=latest
+    )
+```

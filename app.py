@@ -1,11 +1,11 @@
 from flask import Flask, request
-from openai import OpenAI
+from groq import Groq
 import os
 import time
 
 app = Flask(__name__)
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
 
 @app.route("/")
@@ -18,30 +18,29 @@ def upload():
 
     filename = f"received_{int(time.time())}.wav"
 
-    # Save incoming WAV
+    # Receive WAV from ESP32
     with open(filename, "wb") as f:
         while True:
             chunk = request.stream.read(4096)
 
             if not chunk:
                 break
-                
 
             f.write(chunk)
 
-    size = os.path.getsize(filename)
-
     print(f"Received: {filename}")
-    print(f"Size: {size} bytes")
 
-    # Send WAV to OpenAI
-    print("Sending audio to OpenAI...")
+    # Send WAV to Groq Whisper
+    print("Sending audio to Groq...")
 
     with open(filename, "rb") as audio_file:
 
         transcription = client.audio.transcriptions.create(
-            model="gpt-4o-mini-transcribe",
-            file=audio_file
+            file=(filename, audio_file.read()),
+            model="whisper-large-v3-turbo",
+            language="en",
+            response_format="json",
+            temperature=0
         )
 
     print("================================")
@@ -49,7 +48,7 @@ def upload():
     print(transcription.text)
     print("================================")
 
-    # Delete temporary WAV
+    # Delete temporary file
     os.remove(filename)
 
     return "Transcription complete", 200
